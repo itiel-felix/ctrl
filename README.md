@@ -1,38 +1,38 @@
 # Ctrl
 
-ERP para negocio de reparación de controles (PlayStation, Xbox, Switch).
+ERP for a game controller repair business (PlayStation, Xbox, Switch).
 
 ## Stack
 
 - **Frontend:** Next.js 16, React 19, Tailwind CSS 4
 - **Backend:** API Routes (Next.js) + Sequelize
-- **Base de datos:** MySQL
+- **Database:** MySQL
 
-## Módulos
+## Modules
 
-1. **Reparaciones** — Controles en taller, fallas estandarizadas (multi-select), repuestos usados, limpieza y estado.
-2. **Ventas y gastos** — Ventas con ganancia (costo del control + repuestos) y gastos del negocio.
-3. **Inventario** — Repuestos por nombre y consola (enum): sticks, micro switches, stock.
+1. **Repairs** — Controllers in the workshop, standardized failures (multi-select), used parts, cleaning, and status.
+2. **Sales and expenses** — Sales with profit tracking (controller cost + parts) and business expenses.
+3. **Inventory** — Parts by name and console (enum): sticks, micro switches, stock.
 
-## Requisitos
+## Requirements
 
 - Node.js 20+
 - MySQL 8+
 
-## Configuración
+## Setup
 
 ```bash
 cd Ctrl
 cp .env.example .env
-# Edita .env con tus credenciales MySQL
+# Edit .env with your MySQL credentials
 
-# Crea la base de datos en MySQL:
+# Create the database in MySQL:
 # CREATE DATABASE ctrl CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 npm install
 ```
 
-En `.env`, activa una sola vez para crear tablas:
+In `.env`, enable this once to create the tables:
 
 ```
 SYNC_DB=true
@@ -42,27 +42,27 @@ SYNC_DB=true
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000).
 
-Después de la primera ejecución, quita `SYNC_DB=true` de `.env`.
+After the first run, remove `SYNC_DB=true` from `.env`.
 
-Si actualizas el esquema (p. ej. campo `failures` JSON), vuelve a poner `SYNC_DB=true` un momento y reinicia.
+If you update the schema (for example, the JSON `failures` field), temporarily enable `SYNC_DB=true` again and restart.
 
-## Fallas estandarizadas
+## Standardized Failures
 
-En reparaciones se eligen con un multiselect ([Base UI Select](https://base-ui.com/react/components/select)): sticks, bumpers, gatillos, cruceta, botones X/Y/A/B, etc. Ver `FAILURE_CODES` en `src/lib/enums.ts`.
+In repairs, failures are selected with a multi-select ([Base UI Select](https://base-ui.com/react/components/select)): sticks, bumpers, triggers, D-pad, X/Y/A/B buttons, etc. See `FAILURE_CODES` in `src/lib/enums.ts`.
 
-## Repuestos predeterminados
+## Default Parts
 
-En **Inventario**, usa «Cargar repuestos predeterminados» para crear:
+In **Inventory**, use “Load default parts” to create:
 
 - Stick PS4 / PS5 / Xbox One / Xbox Series / Joy-Con
-- Micro switch RB/LB (Xbox One y Xbox Series por separado)
+- RB/LB micro switch (Xbox One and Xbox Series separately)
 
-## Consolas
+## Consoles
 
-Al registrar un control puedes elegir: **PS4**, **PS5**, **Xbox One**, **Xbox Series X|S** o **Switch**.
+When registering a controller, you can choose: **PS4**, **PS5**, **Xbox One**, **Xbox Series X|S**, or **Switch**.
 
-Si tenías registros con `XBOX_ONE_SERIES`, al arrancar con `SYNC_DB=true` se migran a **Xbox One**. Muévelos manualmente a Series si corresponde.
+If you had records with `XBOX_ONE_SERIES`, they are migrated to **Xbox One** when starting with `SYNC_DB=true`. Move them manually to Series if needed.
 
-Cada repuesto tiene **nombre** + **consola** (enum) + **categoría** (stick, micro switch, otro).
+Each part has a **name** + **console** (enum) + **category** (stick, micro switch, other).
