@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import mysql2 from "mysql2";
 import { Sequelize } from "sequelize";
 
 const globalForSequelize = globalThis as unknown as {
@@ -23,6 +24,7 @@ function createSequelize(): Sequelize {
   if (databaseUrl) {
     return new Sequelize(databaseUrl, {
       dialect: "mysql",
+      dialectModule: mysql2,
       dialectOptions: sslDialectOptions(),
       pool: { max: 5, min: 0, acquire: 30000, idle: 10000 },
     });
@@ -30,6 +32,7 @@ function createSequelize(): Sequelize {
 
   return new Sequelize({
     dialect: "mysql",
+    dialectModule: mysql2,
     host: process.env.DB_HOST ?? "127.0.0.1",
     port: Number(process.env.DB_PORT ?? 3306),
     username: process.env.DB_USER ?? "root",
