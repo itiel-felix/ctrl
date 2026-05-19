@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { Sequelize } from "sequelize";
 
 const globalForSequelize = globalThis as unknown as {
@@ -6,8 +7,12 @@ const globalForSequelize = globalThis as unknown as {
 
 function sslDialectOptions(): Record<string, unknown> | undefined {
   if (process.env.DB_SSL !== "true") return undefined;
+  const caPath = process.env.DB_SSL_CA_PATH;
+
   return {
     ssl: {
+      ...(caPath ? { ca: readFileSync(caPath, "utf8") } : {}),
+      minVersion: "TLSv1.2",
       rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false",
     },
   };
@@ -18,7 +23,6 @@ function createSequelize(): Sequelize {
   if (databaseUrl) {
     return new Sequelize(databaseUrl, {
       dialect: "mysql",
-      logging: process.env.NODE_ENV === "development" ? console.log : false,
       dialectOptions: sslDialectOptions(),
       pool: { max: 5, min: 0, acquire: 30000, idle: 10000 },
     });
