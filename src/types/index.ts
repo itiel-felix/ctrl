@@ -77,3 +77,10 @@ export interface FinanceSummary {
   totalExpenses: number;
   netBalance: number;
 }
+
+export interface ExpenseImportResult {
+  imported: number;
+  skipped: number;
+  errors: { index: number; message: string }[];
+  parseWarning?: string;
+}

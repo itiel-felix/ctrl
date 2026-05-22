@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/calculations";
 import { getPlatformLabel } from "@/lib/enums";
@@ -8,6 +9,7 @@ import type { ExpenseDto, FinanceSummary, RepairDto, SaleDto } from "@/types";
 import { Badge, Btn, Card } from "@/components/ui/Card";
 import { MoneyInput } from "@/components/ui/MoneyInput";
 import { Stat } from "@/components/ui/Stat";
+import { ExpenseImportExport } from "@/components/ventas/ExpenseImportExport";
 import { ExpenseRegisterForm } from "@/components/ventas/ExpenseRegisterForm";
 
 export function FinancePanel() {
@@ -48,6 +50,45 @@ export function FinancePanel() {
   async function stockExpense(expenseId: number) {
     try {
       await api(`/api/expenses/${expenseId}/stock`, { method: "POST" });
+      await load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error");
+    }
+  }
+
+  async function deleteExpense(expense: ExpenseDto) {
+    const inventoryNote = expense.inventoryApplied
+      ? " Se restará la cantidad del inventario asociado."
+      : "";
+    const repairNote = expense.isRepairLinked
+      ? " Es el gasto de compra de un control; el control seguirá en reparaciones."
+      : "";
+    if (
+      !confirm(
+        `¿Eliminar el gasto «${expense.description}» (${formatMoney(expense.amount)})?${inventoryNote}${repairNote}`
+      )
+    ) {
+      return;
+    }
+    try {
+      await api(`/api/expenses/${expense.id}`, { method: "DELETE" });
+      await load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error");
+    }
+  }
+
+  async function deleteSale(sale: SaleDto) {
+    const label = sale.repair?.label || `Control #${sale.repairId}`;
+    if (
+      !confirm(
+        `¿Eliminar la venta de ${label} (${formatMoney(sale.salePrice)})? El control volverá a estado «Listo».`
+      )
+    ) {
+      return;
+    }
+    try {
+      await api(`/api/sales/${sale.id}`, { method: "DELETE" });
       await load();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Error");
@@ -141,7 +182,8 @@ export function FinancePanel() {
                   <th className="pb-2 pr-4">Control</th>
                   <th className="pb-2 pr-4">Venta</th>
                   <th className="pb-2 pr-4">Costo</th>
-                  <th className="pb-2">Ganancia</th>
+                  <th className="pb-2 pr-4">Ganancia</th>
+                  <th className="pb-2 w-10" aria-label="Acciones" />
                 </tr>
               </thead>
               <tbody>
@@ -161,8 +203,19 @@ export function FinancePanel() {
                     <td className="py-3 pr-4">
                       {formatMoney(s.totalCost ?? 0)}
                     </td>
-                    <td className="py-3 text-green-400 font-medium">
+                    <td className="py-3 pr-4 text-green-400 font-medium">
                       {formatMoney(s.profit ?? 0)}
+                    </td>
+                    <td className="py-3">
+                      <button
+                        type="button"
+                        onClick={() => deleteSale(s)}
+                        className="p-1.5 rounded-lg text-[var(--muted)] hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                        title="Eliminar venta"
+                        aria-label={`Eliminar venta de ${s.repair?.label || s.repairId}`}
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -174,6 +227,8 @@ export function FinancePanel() {
         </div>
 
         <div className="space-y-6 min-w-0">
+      <ExpenseImportExport onDone={load} />
+
       <Card title="Registrar gasto">
         <ExpenseRegisterForm onCreated={load} />
       </Card>
@@ -214,9 +269,20 @@ export function FinancePanel() {
                     </Btn>
                   )}
                 </div>
-                <span className="shrink-0 font-medium text-red-400">
-                  {formatMoney(e.amount)}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="font-medium text-red-400">
+                    {formatMoney(e.amount)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => deleteExpense(e)}
+                    className="p-1.5 rounded-lg text-[var(--muted)] hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                    title="Eliminar gasto"
+                    aria-label={`Eliminar gasto ${e.description}`}
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

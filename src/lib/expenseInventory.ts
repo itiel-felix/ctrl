@@ -153,3 +153,20 @@ export async function applyExpenseToInventory(
 
   return part;
 }
+
+/** Resta del inventario lo que este gasto había agregado, si aplica. */
+export async function reverseExpenseFromInventory(
+  expense: Expense,
+  transaction?: Transaction
+): Promise<void> {
+  if (!expense.inventoryApplied || !expense.partId) return;
+
+  const payload = parseInventoryPayload(expense.inventoryPayload);
+  const quantity = payload?.quantity ?? 1;
+
+  const part = await Part.findByPk(expense.partId, { transaction });
+  if (part) {
+    part.stockQuantity = Math.max(0, part.stockQuantity - quantity);
+    await part.save({ transaction });
+  }
+}
