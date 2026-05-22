@@ -5,6 +5,8 @@ import { RepairStatusBadge } from "@/components/ui/RepairStatusBadge";
 import { FailureMultiSelect } from "@/components/ui/FailureMultiSelect";
 import { FailureBadges } from "@/components/ui/FailureBadges";
 import { formatMoney } from "@/lib/calculations";
+import { EntityLoadingShell } from "@/components/ui/EntityLoadingShell";
+import { RepairPartUsageRow } from "@/components/reparaciones/RepairPartUsageRow";
 
 import {
     getPlatformLabel,
@@ -18,12 +20,23 @@ export function RepairCard({
     parts,
     onUpdate,
     onAddPart,
+    onRemovePart,
+    onUpdatePart,
     onDelete,
+    loading = false,
 }: {
     repair: RepairDto;
     parts: PartDto[];
+    loading?: boolean;
     onUpdate: (id: number, fields: Partial<RepairDto>) => void;
     onAddPart: (repairId: number, partId: number, qty: number) => void;
+    onRemovePart: (repairId: number, usageId: number, partName: string) => void;
+    onUpdatePart: (
+        repairId: number,
+        usageId: number,
+        partId: number,
+        quantity: number
+    ) => void;
     onDelete: () => void;
 }) {
     const [partId, setPartId] = useState(parts[0]?.id ?? 0);
@@ -48,6 +61,7 @@ export function RepairCard({
         r.status === "PENDIENTE" || r.status === "EN_REPARACION";
 
     return (
+        <EntityLoadingShell loading={loading}>
         <Card
             className={
                 isPending
@@ -151,13 +165,22 @@ export function RepairCard({
             )}
 
             {r.partUsages && r.partUsages.length > 0 && (
-                <ul className="text-sm mb-4 space-y-1">
+                <ul className="text-sm mb-4 space-y-2">
                     <li className="text-[var(--muted)]">Repuestos usados:</li>
                     {r.partUsages.map((u) => (
-                        <li key={u.id}>
-                            {u.part?.name ?? `Pieza #${u.partId}`} × {u.quantity} —{" "}
-                            {formatMoney(u.quantity * u.unitCostSnapshot)}
-                        </li>
+                        <RepairPartUsageRow
+                            key={u.id}
+                            usage={u}
+                            repairId={r.id}
+                            repairPlatform={r.platform}
+                            parts={parts}
+                            canEdit={
+                                r.status !== "VENDIDO" &&
+                                r.status !== "CANCELADO"
+                            }
+                            onUpdate={onUpdatePart}
+                            onRemove={onRemovePart}
+                        />
                     ))}
                 </ul>
             )}
@@ -230,5 +253,6 @@ export function RepairCard({
                 </div>
             )}
         </Card>
+        </EntityLoadingShell>
     );
 }

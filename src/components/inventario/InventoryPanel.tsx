@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import {
   CATEGORY_LABELS,
@@ -11,27 +12,38 @@ import {
   type PartCategory,
 } from "@/lib/enums";
 import { formatMoney } from "@/lib/calculations";
+import { entityKey, useEntityLoading } from "@/hooks/useEntityLoading";
 import type { PartDto } from "@/types";
 import { Badge, Btn, Card } from "@/components/ui/Card";
 import { MoneyInput } from "@/components/ui/MoneyInput";
 
 export function InventoryPanel() {
   const [parts, setParts] = useState<PartDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedOnce = useRef(false);
+  const { isLoading, run } = useEntityLoading();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api<{ parts: PartDto[] }>("/api/parts");
-      setParts(res.parts);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al cargar");
-    } finally {
-      setLoading(false);
-    }
+  const fetchData = useCallback(async () => {
+    const res = await api<{ parts: PartDto[] }>("/api/parts");
+    setParts(res.parts);
   }, []);
+
+  const load = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!opts?.silent && !hasLoadedOnce.current) setInitialLoading(true);
+      setError(null);
+      try {
+        await fetchData();
+        hasLoadedOnce.current = true;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Error al cargar");
+      } finally {
+        setInitialLoading(false);
+      }
+    },
+    [fetchData]
+  );
 
   useEffect(() => {
     load();
@@ -39,8 +51,10 @@ export function InventoryPanel() {
 
   async function seedDefaults() {
     try {
-      await api("/api/parts", { method: "PUT" });
-      await load();
+      await run("inventory-seed", async () => {
+        await api("/api/parts", { method: "PUT" });
+        await fetchData();
+      });
     } catch (err) {
       alert(err instanceof Error ? err.message : "Error");
     }
@@ -50,30 +64,35 @@ export function InventoryPanel() {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     try {
-      await api("/api/parts", {
-        method: "POST",
-        body: JSON.stringify({
-          name: fd.get("name"),
-          platform: fd.get("platform"),
-          category: fd.get("category"),
-          unitCost: Number(fd.get("unitCost") || 0),
-          stockQuantity: Number(fd.get("stockQuantity") || 0),
-        }),
+      await run("part-form", async () => {
+        await api("/api/parts", {
+          method: "POST",
+          body: JSON.stringify({
+            name: fd.get("name"),
+            platform: fd.get("platform"),
+            category: fd.get("category"),
+            unitCost: Number(fd.get("unitCost") || 0),
+            stockQuantity: Number(fd.get("stockQuantity") || 0),
+          }),
+        });
+        (e.target as HTMLFormElement).reset();
+        await fetchData();
       });
-      (e.target as HTMLFormElement).reset();
-      await load();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Error");
     }
   }
 
   async function updateStock(id: number, stockQuantity: number, unitCost: number) {
+    const key = entityKey("part", id);
     try {
-      await api(`/api/parts/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ stockQuantity, unitCost }),
+      await run(key, async () => {
+        await api(`/api/parts/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ stockQuantity, unitCost }),
+        });
+        await fetchData();
       });
-      await load();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Error");
     }
@@ -85,14 +104,25 @@ export function InventoryPanel() {
     <div className="space-y-6">
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
-      {parts.length === 0 && !loading && (
+      {parts.length === 0 && !initialLoading && (
         <Card>
           <p className="text-sm text-[var(--muted)] mb-4">
             El inventario está vacío. Puedes cargar los repuestos predeterminados
             (sticks por consola y micro switches Xbox) o agregar los tuyos.
           </p>
-          <Btn type="button" onClick={seedDefaults}>
-            Cargar repuestos predeterminados
+          <Btn
+            type="button"
+            onClick={seedDefaults}
+            disabled={isLoading("inventory-seed")}
+          >
+            {isLoading("inventory-seed") ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" />
+                Cargando…
+              </span>
+            ) : (
+              "Cargar repuestos predeterminados"
+            )}
           </Btn>
         </Card>
       )}
@@ -143,15 +173,27 @@ export function InventoryPanel() {
             />
           </div>
           <div className="flex items-end">
-            <Btn type="submit">Agregar</Btn>
+            <Btn type="submit" disabled={isLoading("part-form")}>
+              {isLoading("part-form") ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  Agregando…
+                </span>
+              ) : (
+                "Agregar"
+              )}
+            </Btn>
           </div>
         </form>
       </Card>
 
-      {loading ? (
-        <p className="text-[var(--muted)]">Cargando...</p>
-      ) : (
-        <Card title="Repuestos">
+      <Card title="Repuestos">
+        {initialLoading ? (
+          <p className="text-[var(--muted)] flex items-center gap-2">
+            <Loader2 className="size-4 animate-spin" />
+            Cargando inventario…
+          </p>
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -166,29 +208,43 @@ export function InventoryPanel() {
               </thead>
               <tbody>
                 {parts.map((p) => (
-                  <PartRow key={p.id} part={p} onSave={updateStock} />
+                  <PartRow
+                    key={p.id}
+                    part={p}
+                    loading={isLoading(entityKey("part", p.id))}
+                    onSave={updateStock}
+                  />
                 ))}
               </tbody>
             </table>
           </div>
-        </Card>
-      )}
+        )}
+      </Card>
     </div>
   );
 }
 
 function PartRow({
   part: p,
+  loading,
   onSave,
 }: {
   part: PartDto;
+  loading: boolean;
   onSave: (id: number, stock: number, cost: number) => void;
 }) {
   const [stock, setStock] = useState(p.stockQuantity);
   const [cost, setCost] = useState(p.unitCost);
 
+  useEffect(() => {
+    setStock(p.stockQuantity);
+    setCost(p.unitCost);
+  }, [p.stockQuantity, p.unitCost]);
+
   return (
-    <tr className="border-b border-[var(--card-border)]/50">
+    <tr
+      className={`border-b border-[var(--card-border)]/50 ${loading ? "opacity-60" : ""}`}
+    >
       <td className="py-3 pr-3 font-medium">{p.name}</td>
       <td className="py-3 pr-3">
         <Badge>{PLATFORM_LABELS[p.platform]}</Badge>
@@ -201,6 +257,7 @@ function PartRow({
           value={cost}
           onChange={(e) => setCost(Number(e.target.value))}
           wrapperClassName="w-28"
+          disabled={loading}
         />
       </td>
       <td className="py-3 pr-3">
@@ -210,16 +267,21 @@ function PartRow({
           value={stock}
           onChange={(e) => setStock(Number(e.target.value))}
           className={`w-20 ${stock <= 2 ? "border-amber-500" : ""}`}
+          disabled={loading}
         />
       </td>
       <td className="py-3">
-        <Btn
-          type="button"
-          variant="secondary"
-          onClick={() => onSave(p.id, stock, cost)}
-        >
-          Guardar
-        </Btn>
+        {loading ? (
+          <Loader2 className="size-4 animate-spin text-[var(--accent)]" />
+        ) : (
+          <Btn
+            type="button"
+            variant="secondary"
+            onClick={() => onSave(p.id, stock, cost)}
+          >
+            Guardar
+          </Btn>
+        )}
       </td>
     </tr>
   );

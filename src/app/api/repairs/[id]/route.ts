@@ -53,7 +53,20 @@ export async function PATCH(request: Request, { params }: Params) {
     }
 
     const body = await request.json();
-    const { repair: repairFields, addPart } = body;
+    const { repair: repairFields, addPart, removePartUsageId, updatePartUsage } =
+      body;
+
+    if (
+      data.repair.status === "VENDIDO" ||
+      data.repair.status === "CANCELADO"
+    ) {
+      if (addPart || removePartUsageId != null || updatePartUsage) {
+        return NextResponse.json(
+          { error: "No se pueden modificar repuestos en un control vendido o cancelado" },
+          { status: 400 }
+        );
+      }
+    }
 
     if (repairFields) {
       const r = data.repair;
@@ -87,6 +100,137 @@ export async function PATCH(request: Request, { params }: Params) {
       }
       if (repairFields.notes !== undefined) r.notes = repairFields.notes;
       await r.save();
+    }
+
+    if (removePartUsageId != null) {
+      const usageId = Number(removePartUsageId);
+      if (!Number.isFinite(usageId)) {
+        return NextResponse.json(
+          { error: "ID de repuesto inválido" },
+          { status: 400 }
+        );
+      }
+
+      const usage = await RepairPartUsage.findOne({
+        where: { id: usageId, repairId },
+      });
+      if (!usage) {
+        return NextResponse.json(
+          { error: "Repuesto no encontrado en este control" },
+          { status: 404 }
+        );
+      }
+
+      await sequelize.transaction(async (t) => {
+        const part = await Part.findByPk(usage.partId, { transaction: t });
+        if (part) {
+          part.stockQuantity += usage.quantity;
+          await part.save({ transaction: t });
+        }
+        await usage.destroy({ transaction: t });
+      });
+    }
+
+    if (updatePartUsage) {
+      const usageId = Number(updatePartUsage.usageId);
+      const newPartId =
+        updatePartUsage.partId != null
+          ? Number(updatePartUsage.partId)
+          : undefined;
+      const newQuantity =
+        updatePartUsage.quantity != null
+          ? Math.max(1, Math.floor(Number(updatePartUsage.quantity)))
+          : undefined;
+
+      if (!Number.isFinite(usageId)) {
+        return NextResponse.json(
+          { error: "ID de uso de repuesto inválido" },
+          { status: 400 }
+        );
+      }
+
+      const usage = await RepairPartUsage.findOne({
+        where: { id: usageId, repairId },
+      });
+      if (!usage) {
+        return NextResponse.json(
+          { error: "Repuesto no encontrado en este control" },
+          { status: 404 }
+        );
+      }
+
+      const targetPartId = newPartId ?? usage.partId;
+      const targetQty = newQuantity ?? usage.quantity;
+
+      if (targetQty < 1) {
+        return NextResponse.json(
+          { error: "La cantidad debe ser al menos 1" },
+          { status: 400 }
+        );
+      }
+
+      const targetPart = await Part.findByPk(targetPartId);
+      if (!targetPart) {
+        return NextResponse.json(
+          { error: "Repuesto no encontrado" },
+          { status: 404 }
+        );
+      }
+
+      if (!isPartCompatibleWithRepair(targetPart, data.repair.platform)) {
+        return NextResponse.json(
+          { error: "Este repuesto no es compatible con la consola del control" },
+          { status: 400 }
+        );
+      }
+
+      const samePart = usage.partId === targetPartId;
+      if (samePart) {
+        const delta = targetQty - usage.quantity;
+        if (delta > 0 && targetPart.stockQuantity < delta) {
+          return NextResponse.json(
+            {
+              error: `Stock insuficiente (${targetPart.stockQuantity} disponibles)`,
+            },
+            { status: 400 }
+          );
+        }
+      } else if (targetPart.stockQuantity < targetQty) {
+        return NextResponse.json(
+          {
+            error: `Stock insuficiente (${targetPart.stockQuantity} disponibles)`,
+          },
+          { status: 400 }
+        );
+      }
+
+      await sequelize.transaction(async (t) => {
+        const oldPart = await Part.findByPk(usage.partId, { transaction: t });
+
+        if (samePart) {
+          const delta = targetQty - usage.quantity;
+          if (oldPart) {
+            oldPart.stockQuantity -= delta;
+            await oldPart.save({ transaction: t });
+          }
+          usage.quantity = targetQty;
+          await usage.save({ transaction: t });
+        } else {
+          if (oldPart) {
+            oldPart.stockQuantity += usage.quantity;
+            await oldPart.save({ transaction: t });
+          }
+          const newPart = await Part.findByPk(targetPartId, { transaction: t });
+          if (newPart) {
+            newPart.stockQuantity -= targetQty;
+            await newPart.save({ transaction: t });
+          }
+          usage.partId = targetPartId;
+          usage.quantity = targetQty;
+          usage.unitCostSnapshot = toNumber(targetPart.unitCost);
+          await usage.save({ transaction: t });
+        }
+      });
     }
 
     if (addPart) {
