@@ -1,18 +1,24 @@
 import type { ConsolePlatform, PartCategory } from "@/lib/enums";
 import type { PartDto } from "@/types";
 
-/** Sticks Xbox One ↔ Series comparten el mismo módulo analógico. */
-const XBOX_STICK_PLATFORMS: ConsolePlatform[] = ["XBOX_ONE", "XBOX_SERIES"];
+/** Xbox One y Series comparten sticks y micro switches RB/LB. */
+const XBOX_SHARED_PLATFORMS: ConsolePlatform[] = ["XBOX_ONE", "XBOX_SERIES"];
+
+const XBOX_CROSS_COMPAT_CATEGORIES: PartCategory[] = ["STICK", "MICRO_SWITCH"];
+
+function isXboxPlatform(platform: ConsolePlatform): boolean {
+  return platform === "XBOX_ONE" || platform === "XBOX_SERIES";
+}
 
 export function getCompatiblePlatformsForPart(
   repairPlatform: ConsolePlatform,
   partCategory: PartCategory
 ): ConsolePlatform[] {
   if (
-    partCategory === "STICK" &&
-    (repairPlatform === "XBOX_ONE" || repairPlatform === "XBOX_SERIES")
+    isXboxPlatform(repairPlatform) &&
+    XBOX_CROSS_COMPAT_CATEGORIES.includes(partCategory)
   ) {
-    return XBOX_STICK_PLATFORMS;
+    return XBOX_SHARED_PLATFORMS;
   }
   return [repairPlatform];
 }
