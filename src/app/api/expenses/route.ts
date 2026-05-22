@@ -43,6 +43,11 @@ export async function GET() {
       0
     );
 
+    // Balance neto = efectivo entrado por ventas − todo lo gastado.
+    // Así un saldo ≥ 0 significa que ya recuperaste lo invertido (en conjunto).
+    // La ganancia bruta sigue siendo margen por control vendido (venta − costo del control).
+    const netBalance = totalRevenue - totalExpenses;
+
     return NextResponse.json({
       sales: validSales,
       expenses: expenses.map(serializeExpense),
@@ -51,7 +56,7 @@ export async function GET() {
         totalRevenue,
         totalProfit,
         totalExpenses,
-        netBalance: totalProfit - totalExpenses,
+        netBalance,
       },
     });
   } catch (e) {

@@ -5,11 +5,13 @@ export function Stat({
   value,
   money,
   tone,
+  hint,
 }: {
   label: string;
   value: number | string;
   money?: boolean;
   tone?: "default" | "success" | "danger";
+  hint?: string;
 }) {
   const colors = {
     default: "text-white",
@@ -25,6 +27,9 @@ export function Stat({
       <p className={`text-2xl font-bold mt-1 ${colors[tone ?? "default"]}`}>
         {display}
       </p>
+      {hint && (
+        <p className="text-xs text-[var(--muted)] mt-2 leading-snug">{hint}</p>
+      )}
     </div>
   );
 }

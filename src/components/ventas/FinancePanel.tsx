@@ -161,20 +161,33 @@ export function FinancePanel() {
                 <Loader2 className="size-3.5 animate-spin" />
               </div>
             )}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Stat label="Ventas" value={summary.totalSales} />
-              <Stat label="Ingresos" value={summary.totalRevenue} money />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              <Stat label="Ventas" value={summary.totalSales} hint="Controles vendidos" />
+              <Stat
+                label="Ingresos"
+                value={summary.totalRevenue}
+                money
+                hint="Efectivo por ventas"
+              />
+              <Stat
+                label="Gastos"
+                value={summary.totalExpenses}
+                money
+                hint="Todo lo registrado como gasto"
+              />
               <Stat
                 label="Ganancia bruta"
                 value={summary.totalProfit}
                 money
                 tone="success"
+                hint="Por venta: precio − costo del control"
               />
               <Stat
                 label="Balance neto"
                 value={summary.netBalance}
                 money
                 tone={summary.netBalance >= 0 ? "success" : "danger"}
+                hint="Ingresos − gastos. ≥ 0 = recuperaste lo invertido"
               />
             </div>
           </div>
