@@ -9,7 +9,7 @@ import type { ExpenseDto, FinanceSummary, RepairDto, SaleDto } from "@/types";
 import { Badge, Btn, Card } from "@/components/ui/Card";
 import { MoneyInput } from "@/components/ui/MoneyInput";
 import { Stat } from "@/components/ui/Stat";
-import { ExpenseImportExport } from "@/components/ventas/ExpenseImportExport";
+import { DatabaseBackupPanel } from "@/components/ventas/DatabaseBackupPanel";
 import { ExpenseRegisterForm } from "@/components/ventas/ExpenseRegisterForm";
 
 export function FinancePanel() {
@@ -227,7 +227,7 @@ export function FinancePanel() {
         </div>
 
         <div className="space-y-6 min-w-0">
-      <ExpenseImportExport onDone={load} />
+      <DatabaseBackupPanel onDone={load} />
 
       <Card title="Registrar gasto">
         <ExpenseRegisterForm onCreated={load} />

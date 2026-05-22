@@ -84,3 +84,15 @@ export interface ExpenseImportResult {
   errors: { index: number; message: string }[];
   parseWarning?: string;
 }
+
+export interface DatabaseImportResult {
+  mode: "replace" | "expenses-only";
+  imported: {
+    parts: number;
+    repairs: number;
+    repairPartUsages: number;
+    sales: number;
+    expenses: number;
+  };
+  errors: string[];
+}

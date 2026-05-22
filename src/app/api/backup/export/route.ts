@@ -9,7 +9,6 @@ import {
   Sale,
 } from "@/models/index";
 
-/** @deprecated Usa GET /api/backup/export — redirige al respaldo completo */
 export async function GET() {
   try {
     await ensureDb();
@@ -42,7 +41,7 @@ export async function GET() {
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Database error";
-    console.error("[GET /api/expenses/export]", e);
+    console.error("[GET /api/backup/export]", e);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
